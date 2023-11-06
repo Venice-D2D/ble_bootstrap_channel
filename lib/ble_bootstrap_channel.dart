@@ -1,10 +1,14 @@
 library ble_bootstrap_channel;
 
+import 'package:flutter/material.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
 import 'package:venice_core/file/file_metadata.dart';
 
 class BleBootstrapChannel extends BootstrapChannel {
+  final BuildContext context;
+  BleBootstrapChannel(this.context);
+
   @override
   Future<void> close() {
     // TODO: implement close
