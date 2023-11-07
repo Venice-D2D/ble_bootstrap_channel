@@ -1,8 +1,11 @@
+// ignore_for_file: use_build_context_synchronously
+
 library ble_bootstrap_channel;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
 import 'package:venice_core/file/file_metadata.dart';
@@ -21,26 +24,61 @@ class BleBootstrapChannel extends BootstrapChannel {
   Future<void> initReceiver() async {
     bool selectedDevice = false;
 
+    // Check if Bluetooth is supported
+    if (await FlutterBluePlus.isSupported == false) {
+      throw UnsupportedError('Bluetooth not supported by this device');
+    }
+
+    // Setup listener
+    bool ready = false;
+    FlutterBluePlus.adapterState.listen((BluetoothAdapterState state) {
+      if (state == BluetoothAdapterState.on) {
+        ready = true;
+      }
+    });
+
+    // Wait for Bluetooth activation
+    while (!ready) {
+      debugPrint("Waiting for Bluetooth to be ready...");
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
     showDialog(
       context: context,
       builder: (context) {
-        List<String> devices = [];
+        Set<DeviceIdentifier> seen = {};
 
         return StatefulBuilder(
           builder: (context, setState) {
-            // simulate devices being discovered
-            Timer.periodic(const Duration(seconds: 1), (timer) {
-              setState(() {
-                devices.add('new device');
-              });
-            });
+            // Start devices discovery
+            var subscription = FlutterBluePlus.scanResults.listen(
+              (results) {
+                debugPrint("${results.length}");
+                for (ScanResult r in results) {
+                  if (seen.contains(r.device.remoteId) == false) {
+                    print(
+                        '${r.device.remoteId}: "${r.advertisementData.localName}" found! rssi: ${r.rssi}');
+                    setState(() {
+                      seen.add(r.device.remoteId);
+                    });
+                  }
+                }
+              },
+            );
+
+            // Start scanning
+            FlutterBluePlus.startScan();
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
-              content: Text(devices.length.toString()),
+              content: Text(seen.toString()),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    subscription.cancel();
+                    FlutterBluePlus.stopScan();
+                    Navigator.pop(context);
+                  },
                   child: const Text("Cancel"),
                 ),
               ],
