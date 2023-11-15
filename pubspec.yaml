@@ -9,6 +9,7 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  bluetooth_low_energy: ^4.0.0
   flutter:
     sdk: flutter
   flutter_blue_plus: ^1.26.4
