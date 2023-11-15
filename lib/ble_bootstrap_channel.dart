@@ -14,6 +14,24 @@ import 'package:venice_core/file/file_metadata.dart';
 
 class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
+  final UUID veniceUuid = UUID([
+    (100 >> 24) & 0xff,
+    (100 >> 16) & 0xff,
+    (100 >> 8) & 0xff,
+    (100 >> 0) & 0xff,
+    0x00,
+    0x00,
+    0x10,
+    0x00,
+    0x80,
+    0x00,
+    0x00,
+    0x80,
+    0x5f,
+    0x9b,
+    0x34,
+    0xfb
+  ]);
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
 
@@ -55,14 +73,28 @@ class BleBootstrapChannel extends BootstrapChannel {
           builder: (context, setState) {
             // Start devices discovery
             var subscription = FlutterBluePlus.scanResults.listen(
-              (results) {
+              (results) async {
                 for (ScanResult r in results) {
                   if (seen.contains(r.device.advName) == false) {
-                    print(
-                        '${r.device.remoteId}: "${r.advertisementData.localName}" found! rssi: ${r.rssi}');
+                    print('${r.device.remoteId}: "${r.advertisementData.localName}" found! rssi: ${r.rssi}');
                     setState(() {
                       seen.add(r.device.advName);
                     });
+
+                    // TODO remove this check maybe?
+                    if (r.device.advName == "venice") {
+                      debugPrint("Should check services of this device");
+                      r.device.connectionState.listen((event) async {
+                        debugPrint("==> DEVICE STATE: $event");
+
+                        if (event == BluetoothConnectionState.connected) {
+                          await r.device.discoverServices();
+                          BluetoothService veniceService = r.device.servicesList!.firstWhere((service) => service.uuid.toString() == veniceUuid.toString());
+                          debugPrint("==> SERVICE FOUND: ${veniceService.remoteId}");
+                        }
+                      });
+                      await r.device.connect();
+                    }
                   }
                 }
               },
@@ -100,7 +132,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   Future<void> initSender() async {
     await peripheralManager.clearServices();
     final service = GattService(
-      uuid: UUID.short(100),
+      uuid: veniceUuid,
       characteristics: [
         GattCharacteristic(
           uuid: UUID.short(200),
