@@ -49,20 +49,19 @@ class BleBootstrapChannel extends BootstrapChannel {
     showDialog(
       context: context,
       builder: (context) {
-        Set<DeviceIdentifier> seen = {};
+        Set<String> seen = {};
 
         return StatefulBuilder(
           builder: (context, setState) {
             // Start devices discovery
             var subscription = FlutterBluePlus.scanResults.listen(
               (results) {
-                debugPrint("${results.length}");
                 for (ScanResult r in results) {
-                  if (seen.contains(r.device.remoteId) == false) {
+                  if (seen.contains(r.device.advName) == false) {
                     print(
                         '${r.device.remoteId}: "${r.advertisementData.localName}" found! rssi: ${r.rssi}');
                     setState(() {
-                      seen.add(r.device.remoteId);
+                      seen.add(r.device.advName);
                     });
                   }
                 }
