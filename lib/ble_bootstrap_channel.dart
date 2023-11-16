@@ -64,6 +64,9 @@ class BleBootstrapChannel extends BootstrapChannel {
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
+    // Without this, scan does not display any result (?)
+    await peripheralManager.setUp();
+
     showDialog(
       context: context,
       builder: (context) {
