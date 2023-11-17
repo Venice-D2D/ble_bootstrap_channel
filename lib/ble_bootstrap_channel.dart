@@ -7,7 +7,6 @@ import 'dart:typed_data';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
 import 'package:venice_core/file/file_metadata.dart';
@@ -32,6 +31,7 @@ class BleBootstrapChannel extends BootstrapChannel {
     0x34,
     0xfb
   ]);
+  CentralManager get centralManager => CentralManager.instance;
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
 
@@ -43,85 +43,68 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> initReceiver() async {
-    BluetoothDevice? selectedDevice;
+    Peripheral? selectedDevice;
+    await centralManager.setUp();
 
-    // Check if Bluetooth is supported
-    if (await FlutterBluePlus.isSupported == false) {
-      throw UnsupportedError('Bluetooth not supported by this device');
-    }
-
-    // Setup listener
-    bool ready = false;
-    FlutterBluePlus.adapterState.listen((BluetoothAdapterState state) {
-      if (state == BluetoothAdapterState.on) {
-        ready = true;
-      }
-    });
-
-    // Wait for Bluetooth activation
-    while (!ready) {
+    while (centralManager.state != BluetoothLowEnergyState.poweredOn) {
       debugPrint("Waiting for Bluetooth to be ready...");
       await Future.delayed(const Duration(milliseconds: 500));
     }
-
-    // Without this, scan does not display any result (?)
-    await peripheralManager.setUp();
 
     showDialog(
       context: context,
       builder: (context) {
         Set<String> seen = {};
-        List<BluetoothDevice> compatibleDevices = [];
+        Map<Advertisement, Peripheral> compatibles = {};
 
         return StatefulBuilder(
           builder: (context, setState) {
+            centralManager.discovered.listen((event) async {
+              String? advName = event.advertisement.name;
+              if (seen.contains(advName)) {
+                return;
+              }
+
+              // Do not visit same devices twice
+              if (advName != null) {
+                seen.add(advName);
+              }
+
+              // TODO remove this check maybe?
+              if (advName != "venice") {
+                return;
+              }
+
+              debugPrint("==> VENICE DEVICE FOUND");
+              await centralManager.stopDiscovery();
+
+              // Connect to distant device
+              await centralManager.connect(event.peripheral);
+              debugPrint("==> CONNECTED TO VENICE DEVICE");
+
+              // Retrieve venice service
+              List<GattService> services = await centralManager.discoverGATT(event.peripheral);
+              if (services.where((element) => element.uuid == veniceUuid).isNotEmpty) {
+                debugPrint("==> FOUND VENICE SERVICE");
+                setState(() {
+                  compatibles.putIfAbsent(event.advertisement, () => event.peripheral);
+                });
+              }
+            });
+
             // Start devices discovery
-            var subscription = FlutterBluePlus.scanResults.listen(
-              (results) async {
-                for (ScanResult r in results) {
-                  if (seen.contains(r.device.advName) == false) {
-                    print('${r.device.remoteId}: "${r.advertisementData.localName}" found! rssi: ${r.rssi}');
-                    setState(() {
-                      seen.add(r.device.advName);
-                    });
-
-                    // TODO remove this check maybe?
-                    if (r.device.advName == "venice") {
-                      debugPrint("Should check services of this device");
-                      r.device.connectionState.listen((event) async {
-                        debugPrint("==> DEVICE STATE: $event");
-
-                        if (event == BluetoothConnectionState.connected) {
-                          await r.device.discoverServices();
-                          BluetoothService veniceService = r.device.servicesList!.firstWhere((service) => service.uuid.toString() == veniceUuid.toString());
-                          debugPrint("==> SERVICE FOUND: ${veniceService.remoteId}");
-                          setState(() {
-                            compatibleDevices.add( r.device );
-                          });
-                        }
-                      });
-                      await r.device.connect();
-                    }
-                  }
-                }
-              },
-            );
-
-            // Start scanning
-            FlutterBluePlus.startScan();
+            centralManager.startDiscovery();
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
-              content: compatibleDevices.isEmpty ? const Text("Searching...") : Column(
+              content: compatibles.isEmpty ? const Text("Searching...") : Column(
                 mainAxisSize: MainAxisSize.min,
-                children: compatibleDevices.map((e) => ListTile(
+                children: compatibles.entries.map((e) => ListTile(
                   leading: const Icon(Icons.bluetooth),
-                  title: Text(e.advName),
-                  subtitle: Text(e.remoteId.toString()),
+                  title: Text(e.key.name!),
+                  subtitle: Text(e.value.uuid.toString()),
                   onTap: () {
-                    selectedDevice = e;
-                    subscription.cancel();
-                    FlutterBluePlus.stopScan();
+                    selectedDevice = e.value;
                     Navigator.pop(context);
                   },
                 )).toList(),
@@ -129,8 +112,6 @@ class BleBootstrapChannel extends BootstrapChannel {
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
-                    subscription.cancel();
-                    FlutterBluePlus.stopScan();
                     Navigator.pop(context);
                   },
                   child: const Text("Cancel"),
@@ -147,7 +128,7 @@ class BleBootstrapChannel extends BootstrapChannel {
       debugPrint("Waiting for device selection...");
     }
 
-    debugPrint("==> DEVICE SELECTED: ${selectedDevice!.advName}");
+    debugPrint("==> DEVICE SELECTED: ${selectedDevice!.uuid}");
   }
 
   @override
