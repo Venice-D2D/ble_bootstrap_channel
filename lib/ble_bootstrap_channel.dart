@@ -43,7 +43,7 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> initReceiver() async {
-    bool selectedDevice = false;
+    BluetoothDevice? selectedDevice;
 
     // Check if Bluetooth is supported
     if (await FlutterBluePlus.isSupported == false) {
@@ -71,6 +71,7 @@ class BleBootstrapChannel extends BootstrapChannel {
       context: context,
       builder: (context) {
         Set<String> seen = {};
+        List<BluetoothDevice> compatibleDevices = [];
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -94,6 +95,9 @@ class BleBootstrapChannel extends BootstrapChannel {
                           await r.device.discoverServices();
                           BluetoothService veniceService = r.device.servicesList!.firstWhere((service) => service.uuid.toString() == veniceUuid.toString());
                           debugPrint("==> SERVICE FOUND: ${veniceService.remoteId}");
+                          setState(() {
+                            compatibleDevices.add( r.device );
+                          });
                         }
                       });
                       await r.device.connect();
@@ -108,7 +112,20 @@ class BleBootstrapChannel extends BootstrapChannel {
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
-              content: Text(seen.toString()),
+              content: compatibleDevices.isEmpty ? const Text("Searching...") : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: compatibleDevices.map((e) => ListTile(
+                  leading: const Icon(Icons.bluetooth),
+                  title: Text(e.advName),
+                  subtitle: Text(e.remoteId.toString()),
+                  onTap: () {
+                    selectedDevice = e;
+                    subscription.cancel();
+                    FlutterBluePlus.stopScan();
+                    Navigator.pop(context);
+                  },
+                )).toList(),
+              ),
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
@@ -125,10 +142,12 @@ class BleBootstrapChannel extends BootstrapChannel {
       },
     );
 
-    while (!selectedDevice) {
+    while (selectedDevice == null) {
       await Future.delayed(const Duration(seconds: 1));
       debugPrint("Waiting for device selection...");
     }
+
+    debugPrint("==> DEVICE SELECTED: ${selectedDevice!.advName}");
   }
 
   @override
