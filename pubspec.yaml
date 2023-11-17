@@ -12,7 +12,6 @@ dependencies:
   bluetooth_low_energy: ^4.0.0
   flutter:
     sdk: flutter
-  flutter_blue_plus: ^1.26.4
   venice_core:
     git: https://github.com/Venice-D2D/venice_core.git
 

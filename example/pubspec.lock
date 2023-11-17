@@ -141,14 +141,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_blue_plus:
-    dependency: transitive
-    description:
-      name: flutter_blue_plus
-      sha256: bfd8a6bc25543b84abdbb408674cf378eaf8d2c8c101282ac978a5c6b7b04e76
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.26.4"
   flutter_lints:
     dependency: "direct dev"
     description:
