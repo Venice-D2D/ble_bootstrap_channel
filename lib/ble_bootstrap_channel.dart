@@ -13,24 +13,8 @@ import 'package:venice_core/file/file_metadata.dart';
 
 class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
-  final UUID veniceUuid = UUID([
-    (100 >> 24) & 0xff,
-    (100 >> 16) & 0xff,
-    (100 >> 8) & 0xff,
-    (100 >> 0) & 0xff,
-    0x00,
-    0x00,
-    0x10,
-    0x00,
-    0x80,
-    0x00,
-    0x00,
-    0x80,
-    0x5f,
-    0x9b,
-    0x34,
-    0xfb
-  ]);
+  final UUID veniceUuid = UUID.short(100);
+  final UUID veniceCharUuid = UUID.short(200);
   CentralManager get centralManager => CentralManager.instance;
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
@@ -84,12 +68,16 @@ class BleBootstrapChannel extends BootstrapChannel {
 
               // Retrieve venice service
               List<GattService> services = await centralManager.discoverGATT(event.peripheral);
-              if (services.where((element) => element.uuid == veniceUuid).isNotEmpty) {
-                debugPrint("==> FOUND VENICE SERVICE");
-                setState(() {
-                  compatibles.putIfAbsent(event.advertisement, () => event.peripheral);
-                });
+              List<GattService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
+              if (matchingServices.isEmpty) {
+                debugPrint("==> VENICE SERVICE NOT FOUND");
+                return;
               }
+              debugPrint("==> FOUND VENICE SERVICE");
+
+              // Retrieve data from characteristics
+              Uint8List value = await centralManager.readCharacteristic(matchingServices.first.characteristics.first);
+              debugPrint("$value");
             });
 
             // Start devices discovery
@@ -138,31 +126,34 @@ class BleBootstrapChannel extends BootstrapChannel {
       uuid: veniceUuid,
       characteristics: [
         GattCharacteristic(
-          uuid: UUID.short(200),
-          properties: [
-            GattCharacteristicProperty.read,
-          ],
-          descriptors: [],
-        ),
-        GattCharacteristic(
-          uuid: UUID.short(201),
-          properties: [
-            GattCharacteristicProperty.read,
-            GattCharacteristicProperty.write,
-            GattCharacteristicProperty.writeWithoutResponse,
-          ],
-          descriptors: [],
-        ),
-        GattCharacteristic(
-          uuid: UUID.short(202),
-          properties: [
-            GattCharacteristicProperty.notify,
-            GattCharacteristicProperty.indicate,
-          ],
-          descriptors: [],
-        ),
+            uuid: veniceCharUuid,
+            properties: [
+              GattCharacteristicProperty.read,
+            ],
+            descriptors: []
+        )
       ],
     );
+
+    // Setup answer listeners
+    peripheralManager.readCharacteristicCommandReceived.listen((eventArgs) async {
+      final central = eventArgs.central;
+      final characteristic = eventArgs.characteristic;
+      final id = eventArgs.id;
+      final offset = eventArgs.offset;
+
+      const status = true;
+      final value = Uint8List.fromList([0x01, 0x02, 0x03]);
+      await peripheralManager.sendReadCharacteristicReply(
+        central,
+        characteristic: characteristic,
+        id: id,
+        offset: offset,
+        status: status,
+        value: value,
+      );
+    });
+
     await peripheralManager.addService(service);
     final advertisement = Advertisement(
       name: 'venice',
