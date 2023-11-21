@@ -121,7 +121,9 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> initSender() async {
+    await peripheralManager.setUp();
     await peripheralManager.clearServices();
+
     final service = GattService(
       uuid: veniceUuid,
       characteristics: [
@@ -167,8 +169,7 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> sendChannelMetadata(ChannelMetadata data) async {
-    await peripheralManager.setUp();
-    initSender();
+    // throw UnimplementedError();
   }
 
   @override

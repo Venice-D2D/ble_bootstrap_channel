@@ -47,12 +47,14 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  await channel.initSender();
                   channel.sendFileMetadata(data);
                 },
                 child: const Text("Send file metadata")),
             ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  await channel.initSender();
                   channel.sendChannelMetadata(cData);
                 },
                 child: const Text("Send channel metadata")),
