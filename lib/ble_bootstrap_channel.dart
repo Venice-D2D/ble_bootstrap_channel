@@ -15,6 +15,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
   final UUID veniceUuid = UUID.short(100);
   final UUID veniceFileCharacteristicUuid = UUID.short(200);
+  final UUID veniceChannelCharacteristicUuid = UUID.short(201);
   CentralManager get centralManager => CentralManager.instance;
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
@@ -129,6 +130,13 @@ class BleBootstrapChannel extends BootstrapChannel {
       characteristics: [
         GattCharacteristic(
             uuid: veniceFileCharacteristicUuid,
+            properties: [
+              GattCharacteristicProperty.read,
+            ],
+            descriptors: []
+        ),
+        GattCharacteristic(
+            uuid: veniceChannelCharacteristicUuid,
             properties: [
               GattCharacteristicProperty.read,
             ],
