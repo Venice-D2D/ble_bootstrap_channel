@@ -152,6 +152,11 @@ class BleBootstrapChannel extends BootstrapChannel {
       final id = eventArgs.id;
       final offset = eventArgs.offset;
 
+      // Throw if requested characteristic is not a Venice one
+      if (![veniceChannelCharacteristicUuid, veniceFileCharacteristicUuid].contains(characteristic.uuid)) {
+        throw ArgumentError("Tried to read a non-Venice characteristic.");
+      }
+
       const status = true;
       final value = Uint8List.fromList([0x01, 0x02, 0x03]);
       await peripheralManager.sendReadCharacteristicReply(
