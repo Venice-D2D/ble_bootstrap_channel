@@ -14,7 +14,7 @@ import 'package:venice_core/file/file_metadata.dart';
 class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
   final UUID veniceUuid = UUID.short(100);
-  final UUID veniceCharUuid = UUID.short(200);
+  final UUID veniceFileCharacteristicUuid = UUID.short(200);
   CentralManager get centralManager => CentralManager.instance;
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
@@ -128,7 +128,7 @@ class BleBootstrapChannel extends BootstrapChannel {
       uuid: veniceUuid,
       characteristics: [
         GattCharacteristic(
-            uuid: veniceCharUuid,
+            uuid: veniceFileCharacteristicUuid,
             properties: [
               GattCharacteristicProperty.read,
             ],
