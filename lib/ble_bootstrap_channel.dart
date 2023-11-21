@@ -151,14 +151,22 @@ class BleBootstrapChannel extends BootstrapChannel {
       final characteristic = eventArgs.characteristic;
       final id = eventArgs.id;
       final offset = eventArgs.offset;
+      const status = true;
 
       // Throw if requested characteristic is not a Venice one
       if (![veniceChannelCharacteristicUuid, veniceFileCharacteristicUuid].contains(characteristic.uuid)) {
         throw ArgumentError("Tried to read a non-Venice characteristic.");
       }
 
-      const status = true;
-      final value = Uint8List.fromList([0x01, 0x02, 0x03]);
+      Uint8List value;
+      if (characteristic.uuid == veniceChannelCharacteristicUuid) {
+        value = Uint8List.fromList([0x00, 0x01, 0x02, 0x03]);
+      } else if (characteristic.uuid == veniceFileCharacteristicUuid) {
+        value = Uint8List.fromList([0x09, 0x08, 0x07, 0x06]);
+      } else {
+        throw UnimplementedError();
+      }
+
       await peripheralManager.sendReadCharacteristicReply(
         central,
         characteristic: characteristic,
@@ -186,8 +194,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   }
 
   @override
-  Future<void> sendFileMetadata(FileMetadata data) {
-    // TODO: implement sendFileMetadata
-    throw UnimplementedError();
+  Future<void> sendFileMetadata(FileMetadata data) async {
+    // throw UnimplementedError();
   }
 }
