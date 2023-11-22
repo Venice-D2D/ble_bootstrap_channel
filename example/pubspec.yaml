@@ -14,6 +14,7 @@ dependencies:
   venice_core:
     git: https://github.com/Venice-D2D/venice_core.git
   cupertino_icons: ^1.0.2
+  fluttertoast: ^8.2.4
 
 dev_dependencies:
   flutter_test:
