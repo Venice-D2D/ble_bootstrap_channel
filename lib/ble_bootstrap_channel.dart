@@ -11,6 +11,12 @@ import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
 import 'package:venice_core/file/file_metadata.dart';
 
+class ConnectionData {
+  final FileMetadata fileData;
+  final ChannelMetadata channelData;
+  ConnectionData({required this.fileData, required this.channelData});
+}
+
 class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
   final UUID veniceUuid = UUID.short(100);
@@ -42,7 +48,7 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> initReceiver() async {
-    Peripheral? selectedDevice;
+    ConnectionData? connectionData;
     await centralManager.setUp();
 
     while (centralManager.state != BluetoothLowEnergyState.poweredOn) {
@@ -54,7 +60,7 @@ class BleBootstrapChannel extends BootstrapChannel {
       context: context,
       builder: (context) {
         Set<String> seen = {};
-        Map<Advertisement, Peripheral> compatibles = {};
+        Map<DiscoveredEventArgs, ConnectionData> compatibles = {};
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -117,6 +123,12 @@ class BleBootstrapChannel extends BootstrapChannel {
               } while (cValue.toString() == channelNullValue.toString());
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
               debugPrint("==> CHANNEL VALUE; $cValue");
+
+              // TODO put real data
+              setState(() {
+                compatibles.putIfAbsent(event, () => ConnectionData(fileData: FileMetadata("name", 42, 42),
+                    channelData: ChannelMetadata("channelIdentifier", "address", "apIdentifier", "password")));
+              });
             });
 
             // Start devices discovery
@@ -128,10 +140,10 @@ class BleBootstrapChannel extends BootstrapChannel {
                 mainAxisSize: MainAxisSize.min,
                 children: compatibles.entries.map((e) => ListTile(
                   leading: const Icon(Icons.bluetooth),
-                  title: Text(e.key.name!),
-                  subtitle: Text(e.value.uuid.toString()),
+                  title: Text(e.key.advertisement.name!),
+                  subtitle: Text(e.key.peripheral.uuid.toString()),
                   onTap: () {
-                    selectedDevice = e.value;
+                    connectionData = e.value;
                     Navigator.pop(context);
                   },
                 )).toList(),
@@ -150,12 +162,13 @@ class BleBootstrapChannel extends BootstrapChannel {
       },
     );
 
-    while (selectedDevice == null) {
+    while (connectionData == null) {
       await Future.delayed(const Duration(seconds: 1));
       debugPrint("Waiting for device selection...");
     }
 
-    debugPrint("==> DEVICE SELECTED: ${selectedDevice!.uuid}");
+    // TODO display connection data
+    debugPrint("==> ALL DONE!");
   }
 
   @override
