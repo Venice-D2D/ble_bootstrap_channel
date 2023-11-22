@@ -1,5 +1,7 @@
 import 'package:ble_bootstrap_channel/ble_bootstrap_channel.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
+import 'package:venice_core/channels/events/bootstrap_channel_event.dart';
 import 'package:venice_core/file/file_metadata.dart';
 import 'package:flutter/material.dart';
 
@@ -36,6 +38,13 @@ class _MyHomePageState extends State<MyHomePage> {
     FileMetadata data = FileMetadata("testName", 42000, 10);
     ChannelMetadata cData =
         ChannelMetadata("wifi_channel", "address", "apIdentifier", "password");
+
+    channel.on = (BootstrapChannelEvent event, dynamic data) {
+      Fluttertoast.showToast(
+          msg: "Data received: $data",
+          toastLength: Toast.LENGTH_LONG
+      );
+    };
 
     return Scaffold(
       appBar: AppBar(
