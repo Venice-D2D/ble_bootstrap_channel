@@ -3,11 +3,13 @@
 library ble_bootstrap_channel;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/material.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
+import 'package:venice_core/channels/abstractions/channel.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
 import 'package:venice_core/file/file_metadata.dart';
 
@@ -108,7 +110,8 @@ class BleBootstrapChannel extends BootstrapChannel {
                 await Future.delayed(const Duration(seconds: 1));
               }
               debugPrint("==> FILE CHARACTERISTIC OK");
-              debugPrint("==> FILE VALUE: $fValue");
+              List<String> words = utf8.decode(fValue).split(';');
+              FileMetadata fileMetadata = FileMetadata(words[0], int.parse(words[1]), int.parse(words[2]));
 
               // Retrieve channel data
               GattCharacteristic distantChannelCharacteristic =
@@ -122,12 +125,13 @@ class BleBootstrapChannel extends BootstrapChannel {
                 await Future.delayed(const Duration(seconds: 1));
               } while (cValue.toString() == channelNullValue.toString());
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
-              debugPrint("==> CHANNEL VALUE; $cValue");
+              words = utf8.decode(cValue).split(";");
+              ChannelMetadata channelMetadata = ChannelMetadata(words[0], words[1], words[2], words[3]);
 
-              // TODO put real data
               setState(() {
-                compatibles.putIfAbsent(event, () => ConnectionData(fileData: FileMetadata("name", 42, 42),
-                    channelData: ChannelMetadata("channelIdentifier", "address", "apIdentifier", "password")));
+                compatibles.putIfAbsent(event, () => ConnectionData(
+                    fileData: fileMetadata,
+                    channelData: channelMetadata));
               });
             });
 
@@ -254,13 +258,11 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> sendChannelMetadata(ChannelMetadata data) async {
-    // TODO convert data to bytes
-    channelValue = Uint8List.fromList([11, 12, 13]);
+    channelValue = utf8.encode(data.toString());
   }
 
   @override
   Future<void> sendFileMetadata(FileMetadata data) async {
-    // TODO convert data to bytes
-    fileValue = Uint8List.fromList([5, 6, 7, 8]);
+    fileValue = utf8.encode(data.toString());
   }
 }
