@@ -31,6 +31,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   // Sender values
   late Uint8List fileValue;
   late Uint8List channelValue;
+  bool isSetUp = false;
 
 
   @override
@@ -159,6 +160,11 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> initSender() async {
+    if (isSetUp) {
+      return;
+    }
+    isSetUp = true;
+
     await peripheralManager.setUp();
     await peripheralManager.clearServices();
 
