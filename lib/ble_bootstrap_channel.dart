@@ -20,6 +20,10 @@ class BleBootstrapChannel extends BootstrapChannel {
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
 
+  // Service characteristics
+  late GattCharacteristic fileCharacteristic;
+  late GattCharacteristic channelCharacteristic;
+
   @override
   Future<void> close() {
     // TODO: implement close
@@ -125,23 +129,27 @@ class BleBootstrapChannel extends BootstrapChannel {
     await peripheralManager.setUp();
     await peripheralManager.clearServices();
 
+    // Initialize service characteristics
+    fileCharacteristic = GattCharacteristic(
+        uuid: veniceFileCharacteristicUuid,
+        properties: [
+          GattCharacteristicProperty.read,
+        ],
+        descriptors: []
+    );
+    channelCharacteristic = GattCharacteristic(
+        uuid: veniceChannelCharacteristicUuid,
+        properties: [
+          GattCharacteristicProperty.read,
+        ],
+        descriptors: []
+    );
+
     final service = GattService(
       uuid: veniceUuid,
       characteristics: [
-        GattCharacteristic(
-            uuid: veniceFileCharacteristicUuid,
-            properties: [
-              GattCharacteristicProperty.read,
-            ],
-            descriptors: []
-        ),
-        GattCharacteristic(
-            uuid: veniceChannelCharacteristicUuid,
-            properties: [
-              GattCharacteristicProperty.read,
-            ],
-            descriptors: []
-        )
+        fileCharacteristic,
+        channelCharacteristic
       ],
     );
 
