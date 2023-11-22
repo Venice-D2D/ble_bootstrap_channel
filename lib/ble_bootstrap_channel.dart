@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
 import 'package:venice_core/channels/abstractions/channel.dart';
 import 'package:venice_core/channels/channel_metadata.dart';
+import 'package:venice_core/channels/events/bootstrap_channel_event.dart';
 import 'package:venice_core/file/file_metadata.dart';
 
 class ConnectionData {
@@ -171,7 +172,8 @@ class BleBootstrapChannel extends BootstrapChannel {
       debugPrint("Waiting for device selection...");
     }
 
-    // TODO display connection data
+    on(BootstrapChannelEvent.fileMetadata, connectionData!.fileData);
+    on(BootstrapChannelEvent.channelMetadata, connectionData!.channelData);
     debugPrint("==> ALL DONE!");
   }
 
