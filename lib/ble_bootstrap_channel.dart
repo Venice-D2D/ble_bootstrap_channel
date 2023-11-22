@@ -24,6 +24,15 @@ class BleBootstrapChannel extends BootstrapChannel {
   late GattCharacteristic fileCharacteristic;
   late GattCharacteristic channelCharacteristic;
 
+  // Reference values
+  final Uint8List fileNullValue = Uint8List.fromList([0x09, 0x08, 0x07, 0x06]);
+  final Uint8List channelNullValue = Uint8List.fromList([0x00, 0x01, 0x02, 0x03]);
+
+  // Sender values
+  late Uint8List fileValue;
+  late Uint8List channelValue;
+
+
   @override
   Future<void> close() {
     // TODO: implement close
@@ -80,9 +89,33 @@ class BleBootstrapChannel extends BootstrapChannel {
               }
               debugPrint("==> FOUND VENICE SERVICE");
 
-              // Retrieve data from characteristics
-              Uint8List value = await centralManager.readCharacteristic(matchingServices.first.characteristics.first);
-              debugPrint("$value");
+              // Retrieve file data
+              GattCharacteristic distantFileCharacteristic =
+                matchingServices.first.characteristics
+                    .firstWhere((element) => element.uuid == veniceFileCharacteristicUuid,
+                orElse: () => throw RangeError("File characteristic not found."));
+              Uint8List fValue = fileNullValue;
+              while (fValue.toString() == fileNullValue.toString()) {
+                debugPrint("==> FETCHING FILE VALUE");
+                fValue = await centralManager.readCharacteristic(distantFileCharacteristic);
+                await Future.delayed(const Duration(seconds: 1));
+              }
+              debugPrint("==> FILE CHARACTERISTIC OK");
+              debugPrint("==> FILE VALUE: $fValue");
+
+              // Retrieve channel data
+              GattCharacteristic distantChannelCharacteristic =
+                matchingServices.first.characteristics
+                    .firstWhere((element) => element.uuid == veniceChannelCharacteristicUuid,
+                    orElse: () => throw RangeError("Channel characteristic not found."));
+              Uint8List cValue = channelNullValue;
+              do {
+                debugPrint("==> FETCHING CHANNEL VALUE");
+                cValue = await centralManager.readCharacteristic(distantChannelCharacteristic);
+                await Future.delayed(const Duration(seconds: 1));
+              } while (cValue.toString() == channelNullValue.toString());
+              debugPrint("==> CHANNEL CHARACTERISTIC OK");
+              debugPrint("==> CHANNEL VALUE; $cValue");
             });
 
             // Start devices discovery
@@ -129,6 +162,10 @@ class BleBootstrapChannel extends BootstrapChannel {
     await peripheralManager.setUp();
     await peripheralManager.clearServices();
 
+    // Initialize both values to null values
+    fileValue = fileNullValue;
+    channelValue = channelNullValue;
+
     // Initialize service characteristics
     fileCharacteristic = GattCharacteristic(
         uuid: veniceFileCharacteristicUuid,
@@ -168,9 +205,9 @@ class BleBootstrapChannel extends BootstrapChannel {
 
       Uint8List value;
       if (characteristic.uuid == veniceChannelCharacteristicUuid) {
-        value = Uint8List.fromList([0x00, 0x01, 0x02, 0x03]);
+        value = channelValue;
       } else if (characteristic.uuid == veniceFileCharacteristicUuid) {
-        value = Uint8List.fromList([0x09, 0x08, 0x07, 0x06]);
+        value = fileValue;
       } else {
         throw UnimplementedError();
       }
@@ -198,11 +235,13 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> sendChannelMetadata(ChannelMetadata data) async {
-    // throw UnimplementedError();
+    // TODO convert data to bytes
+    channelValue = Uint8List.fromList([11, 12, 13]);
   }
 
   @override
   Future<void> sendFileMetadata(FileMetadata data) async {
-    // throw UnimplementedError();
+    // TODO convert data to bytes
+    fileValue = Uint8List.fromList([5, 6, 7, 8]);
   }
 }
