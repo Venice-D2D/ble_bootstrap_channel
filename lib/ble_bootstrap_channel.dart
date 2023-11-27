@@ -9,10 +9,9 @@ import 'dart:typed_data';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/material.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
-import 'package:venice_core/channels/abstractions/channel.dart';
-import 'package:venice_core/channels/channel_metadata.dart';
+import 'package:venice_core/metadata/file_metadata.dart';
 import 'package:venice_core/channels/events/bootstrap_channel_event.dart';
-import 'package:venice_core/file/file_metadata.dart';
+import 'package:venice_core/metadata/channel_metadata.dart';
 
 class ConnectionData {
   final FileMetadata fileData;

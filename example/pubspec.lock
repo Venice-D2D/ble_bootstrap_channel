@@ -80,6 +80,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  buffer:
+    dependency: transitive
+    description:
+      name: buffer
+      sha256: "94f60815065a8f0fd4f05be51faf86cf86519327e039d5c2aac72e1d1cc1dad4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2"
   characters:
     dependency: transitive
     description:
@@ -305,7 +313,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: b9d6dce7d37a27f0af5ca65d375b396a17a179f7
+      resolved-ref: "226334f99fb547493d2443818dba6214cc43152c"
       url: "https://github.com/Venice-D2D/venice_core.git"
     source: git
     version: "1.0.0+1"
