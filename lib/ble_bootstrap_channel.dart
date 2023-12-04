@@ -40,12 +40,25 @@ class BleBootstrapChannel extends BootstrapChannel {
   late Uint8List fileValue;
   late Uint8List channelValue;
   bool isSetUp = false;
+  StreamSubscription? characteristicReadSubscription;
+
+  // Receiver values
+  Peripheral? distantDevice;
 
 
   @override
-  Future<void> close() {
-    // TODO: implement close
-    throw UnimplementedError();
+  Future<void> close() async {
+    // receiver
+    if (distantDevice != null) {
+      centralManager.disconnect(distantDevice!);
+      centralManager.stopDiscovery();
+    }
+
+    // sender
+    if (characteristicReadSubscription != null) {
+      characteristicReadSubscription!.cancel();
+      peripheralManager.stopAdvertising();
+    }
   }
 
   @override
@@ -148,6 +161,7 @@ class BleBootstrapChannel extends BootstrapChannel {
                   subtitle: Text(e.key.peripheral.uuid.toString()),
                   onTap: () {
                     connectionData = e.value;
+                    distantDevice = e.key.peripheral;
                     Navigator.pop(context);
                   },
                 )).toList(),
@@ -215,7 +229,7 @@ class BleBootstrapChannel extends BootstrapChannel {
     );
 
     // Setup answer listeners
-    peripheralManager.readCharacteristicCommandReceived.listen((eventArgs) async {
+    characteristicReadSubscription = peripheralManager.readCharacteristicCommandReceived.listen((eventArgs) async {
       final central = eventArgs.central;
       final characteristic = eventArgs.characteristic;
       final id = eventArgs.id;
