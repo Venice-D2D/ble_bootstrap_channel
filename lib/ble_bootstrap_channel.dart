@@ -66,7 +66,7 @@ class BleBootstrapChannel extends BootstrapChannel {
     ConnectionData? connectionData;
     await centralManager.setUp();
 
-    while (centralManager.state != BluetoothLowEnergyState.poweredOn) {
+    while (await centralManager.getState() != BluetoothLowEnergyState.poweredOn) {
       debugPrint("Waiting for Bluetooth to be ready...");
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -117,12 +117,13 @@ class BleBootstrapChannel extends BootstrapChannel {
                     .firstWhere((element) => element.uuid == veniceFileCharacteristicUuid,
                 orElse: () => throw RangeError("File characteristic not found."));
               Uint8List fValue = fileNullValue;
-              while (fValue.toString() == fileNullValue.toString()) {
+              while (fValue.toString() == fileNullValue.toString() || fValue.isEmpty) {
                 debugPrint("==> FETCHING FILE VALUE");
                 fValue = await centralManager.readCharacteristic(distantFileCharacteristic);
                 await Future.delayed(const Duration(seconds: 1));
               }
               debugPrint("==> FILE CHARACTERISTIC OK");
+              debugPrint("==> RECEIVED: ${utf8.decode(fValue)}");
               List<String> words = utf8.decode(fValue).split(';');
               FileMetadata fileMetadata = FileMetadata(words[0], int.parse(words[1]), int.parse(words[2]));
 
@@ -136,8 +137,9 @@ class BleBootstrapChannel extends BootstrapChannel {
                 debugPrint("==> FETCHING CHANNEL VALUE");
                 cValue = await centralManager.readCharacteristic(distantChannelCharacteristic);
                 await Future.delayed(const Duration(seconds: 1));
-              } while (cValue.toString() == channelNullValue.toString());
+              } while (cValue.toString() == channelNullValue.toString() || cValue.isEmpty);
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
+              debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
               ChannelMetadata channelMetadata = ChannelMetadata(words[0], words[1], words[2], words[3]);
 
@@ -229,12 +231,9 @@ class BleBootstrapChannel extends BootstrapChannel {
     );
 
     // Setup answer listeners
-    characteristicReadSubscription = peripheralManager.readCharacteristicCommandReceived.listen((eventArgs) async {
+    characteristicReadSubscription = peripheralManager.characteristicRead.listen((eventArgs) async {
       final central = eventArgs.central;
       final characteristic = eventArgs.characteristic;
-      final id = eventArgs.id;
-      final offset = eventArgs.offset;
-      const status = true;
 
       // Throw if requested characteristic is not a Venice one
       if (![veniceChannelCharacteristicUuid, veniceFileCharacteristicUuid].contains(characteristic.uuid)) {
@@ -250,14 +249,7 @@ class BleBootstrapChannel extends BootstrapChannel {
         throw UnimplementedError();
       }
 
-      await peripheralManager.sendReadCharacteristicReply(
-        central,
-        characteristic: characteristic,
-        id: id,
-        offset: offset,
-        status: status,
-        value: value,
-      );
+      await peripheralManager.writeCharacteristic(characteristic, value: value);
     });
 
     await peripheralManager.addService(service);

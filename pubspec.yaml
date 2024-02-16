@@ -9,7 +9,7 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
-  bluetooth_low_energy: ^4.0.0
+  bluetooth_low_energy: ^5.0.6
   flutter:
     sdk: flutter
   venice_core:
