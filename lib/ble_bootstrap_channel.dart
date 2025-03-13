@@ -21,9 +21,9 @@ class ConnectionData {
 
 class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
-  final UUID veniceUuid = UUID.short(100);
-  final UUID veniceFileCharacteristicUuid = UUID.short(200);
-  final UUID veniceChannelCharacteristicUuid = UUID.short(201);
+  final UUID veniceUuid = UUID.short(6157);
+  final UUID veniceFileCharacteristicUuid = UUID.short(10793);
+  final UUID veniceChannelCharacteristicUuid = UUID.short(10896);
   CentralManager get centralManager => CentralManager.instance;
   PeripheralManager get peripheralManager => PeripheralManager.instance;
   BleBootstrapChannel(this.context);
@@ -99,11 +99,17 @@ class BleBootstrapChannel extends BootstrapChannel {
               await centralManager.stopDiscovery();
 
               // Connect to distant device
-              await centralManager.connect(event.peripheral);
+              try {
+                await centralManager.connect(event.peripheral);
+              } catch(e){
+                debugPrint("Error connecting to device: $e");
+              }
               debugPrint("==> CONNECTED TO VENICE DEVICE");
 
               // Retrieve venice service
               List<GattService> services = await centralManager.discoverGATT(event.peripheral);
+              debugPrint("==> Services retrieved !");
+              debugPrint(veniceUuid.toString());
               List<GattService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
               if (matchingServices.isEmpty) {
                 debugPrint("==> VENICE SERVICE NOT FOUND");
@@ -125,7 +131,10 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> FILE CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(fValue)}");
               List<String> words = utf8.decode(fValue).split(';');
-              FileMetadata fileMetadata = FileMetadata(words[0], int.parse(words[1]), int.parse(words[2]));
+              debugPrint("==> RECEIVED size: "+words.length.toString());
+              debugPrint("==> RECEIVED List content: "+words.join(" "));
+              debugPrint("==> RECEIVED List first: "+words[0]);
+              FileMetadata fileMetadata = FileMetadata(words[0].trim(), int.parse(words[1].trim()), int.parse(words[2].trim()));
 
               // Retrieve channel data
               GattCharacteristic distantChannelCharacteristic =
@@ -141,7 +150,7 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
-              ChannelMetadata channelMetadata = ChannelMetadata(words[0], words[1], words[2], words[3]);
+              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), "", int.parse(words[3].trim()));
 
               setState(() {
                 compatibles.putIfAbsent(event, () => ConnectionData(
@@ -265,11 +274,11 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   @override
   Future<void> sendChannelMetadata(ChannelMetadata data) async {
-    channelValue = utf8.encode(data.toString());
+    channelValue = Uint8List.fromList(data.toString().codeUnits);
   }
 
   @override
   Future<void> sendFileMetadata(FileMetadata data) async {
-    fileValue = utf8.encode(data.toString());
+    fileValue = Uint8List.fromList(data.toString().codeUnits);
   }
 }
