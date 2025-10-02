@@ -24,13 +24,13 @@ class BleBootstrapChannel extends BootstrapChannel {
   final UUID veniceUuid = UUID.short(6157);
   final UUID veniceFileCharacteristicUuid = UUID.short(10793);
   final UUID veniceChannelCharacteristicUuid = UUID.short(10896);
-  CentralManager get centralManager => CentralManager.instance;
-  PeripheralManager get peripheralManager => PeripheralManager.instance;
+  CentralManager get centralManager => CentralManager();
+  PeripheralManager get peripheralManager => PeripheralManager();
   BleBootstrapChannel(this.context);
 
   // Service characteristics
-  late GattCharacteristic fileCharacteristic;
-  late GattCharacteristic channelCharacteristic;
+  late GATTCharacteristic fileCharacteristic;
+  late GATTCharacteristic channelCharacteristic;
 
   // Reference values
   final Uint8List fileNullValue = Uint8List.fromList([0x09, 0x08, 0x07, 0x06]);
@@ -64,9 +64,9 @@ class BleBootstrapChannel extends BootstrapChannel {
   @override
   Future<void> initReceiver() async {
     ConnectionData? connectionData;
-    await centralManager.setUp();
+    //await centralManager.setUp(); removed in 6.x
 
-    while (await centralManager.getState() != BluetoothLowEnergyState.poweredOn) {
+    while (centralManager.state != BluetoothLowEnergyState.poweredOn) {
       debugPrint("Waiting for Bluetooth to be ready...");
       await Future.delayed(const Duration(milliseconds: 500));
     }
@@ -107,10 +107,10 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> CONNECTED TO VENICE DEVICE");
 
               // Retrieve venice service
-              List<GattService> services = await centralManager.discoverGATT(event.peripheral);
+              List<GATTService> services = await centralManager.discoverGATT(event.peripheral);
               debugPrint("==> Services retrieved !");
               debugPrint(veniceUuid.toString());
-              List<GattService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
+              List<GATTService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
               if (matchingServices.isEmpty) {
                 debugPrint("==> VENICE SERVICE NOT FOUND");
                 return;
@@ -118,14 +118,14 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> FOUND VENICE SERVICE");
 
               // Retrieve file data
-              GattCharacteristic distantFileCharacteristic =
+              GATTCharacteristic distantFileCharacteristic =
                 matchingServices.first.characteristics
                     .firstWhere((element) => element.uuid == veniceFileCharacteristicUuid,
                 orElse: () => throw RangeError("File characteristic not found."));
               Uint8List fValue = fileNullValue;
               while (fValue.toString() == fileNullValue.toString() || fValue.isEmpty) {
                 debugPrint("==> FETCHING FILE VALUE");
-                fValue = await centralManager.readCharacteristic(distantFileCharacteristic);
+                fValue = await centralManager.readCharacteristic(event.peripheral, distantFileCharacteristic);
                 await Future.delayed(const Duration(seconds: 1));
               }
               debugPrint("==> FILE CHARACTERISTIC OK");
@@ -137,14 +137,14 @@ class BleBootstrapChannel extends BootstrapChannel {
               FileMetadata fileMetadata = FileMetadata(words[0].trim(), int.parse(words[1].trim()), int.parse(words[2].trim()));
 
               // Retrieve channel data
-              GattCharacteristic distantChannelCharacteristic =
+              GATTCharacteristic distantChannelCharacteristic =
                 matchingServices.first.characteristics
                     .firstWhere((element) => element.uuid == veniceChannelCharacteristicUuid,
                     orElse: () => throw RangeError("Channel characteristic not found."));
               Uint8List cValue = channelNullValue;
               do {
                 debugPrint("==> FETCHING CHANNEL VALUE");
-                cValue = await centralManager.readCharacteristic(distantChannelCharacteristic);
+                cValue = await centralManager.readCharacteristic(event.peripheral, distantChannelCharacteristic);
                 await Future.delayed(const Duration(seconds: 1));
               } while (cValue.toString() == channelNullValue.toString() || cValue.isEmpty);
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
@@ -208,40 +208,50 @@ class BleBootstrapChannel extends BootstrapChannel {
     }
     isSetUp = true;
 
-    await peripheralManager.setUp();
-    await peripheralManager.clearServices();
+    //await peripheralManager.setUp(); removed in 6.x
+    await peripheralManager.removeAllServices(); //clearServices();
 
     // Initialize both values to null values
     fileValue = fileNullValue;
     channelValue = channelNullValue;
 
     // Initialize service characteristics
-    fileCharacteristic = GattCharacteristic(
+    fileCharacteristic = GATTCharacteristic.mutable(
         uuid: veniceFileCharacteristicUuid,
         properties: [
-          GattCharacteristicProperty.read,
+          GATTCharacteristicProperty.read,
         ],
-        descriptors: []
+        descriptors: [],
+        permissions: [
+          GATTCharacteristicPermission.read,
+        ],
     );
-    channelCharacteristic = GattCharacteristic(
+    channelCharacteristic = GATTCharacteristic.mutable(
         uuid: veniceChannelCharacteristicUuid,
         properties: [
-          GattCharacteristicProperty.read,
+          GATTCharacteristicProperty.read,
         ],
-        descriptors: []
+        descriptors: [],
+        //value:  Uint8List.fromList([0x01, 0x02]),
+        permissions: [
+          GATTCharacteristicPermission.read,
+        ],
     );
 
-    final service = GattService(
+    final service = GATTService(
       uuid: veniceUuid,
       characteristics: [
-        fileCharacteristic,
-        channelCharacteristic
+        channelCharacteristic,
+        fileCharacteristic
       ],
+      includedServices: [],
+      isPrimary: true, //To check it is ok
     );
 
     // Setup answer listeners
-    characteristicReadSubscription = peripheralManager.characteristicRead.listen((eventArgs) async {
+    characteristicReadSubscription = peripheralManager.characteristicReadRequested.listen((eventArgs) async {
       final central = eventArgs.central;
+      final request = eventArgs.request;
       final characteristic = eventArgs.characteristic;
 
       // Throw if requested characteristic is not a Venice one
@@ -252,22 +262,27 @@ class BleBootstrapChannel extends BootstrapChannel {
       Uint8List value;
       if (characteristic.uuid == veniceChannelCharacteristicUuid) {
         value = channelValue;
+        debugPrint("[BleBootstrapChannel] veniceChannelCharacteristicUuid selected !");
       } else if (characteristic.uuid == veniceFileCharacteristicUuid) {
+        debugPrint("[BleBootstrapChannel] veniceFileCharacteristicUuid selected !");
         value = fileValue;
       } else {
         throw UnimplementedError();
       }
 
-      await peripheralManager.writeCharacteristic(characteristic, value: value);
+      debugPrint("[BleBootstrapChannel] Sending characteristic info");
+      await peripheralManager.respondReadRequestWithValue(request, value: value);
     });
 
     await peripheralManager.addService(service);
     final advertisement = Advertisement(
       name: 'venice',
-      manufacturerSpecificData: ManufacturerSpecificData(
+      serviceUUIDs: [service.uuid],
+      serviceData: {channelCharacteristic.uuid:channelValue},
+      manufacturerSpecificData: [ManufacturerSpecificData(
         id: 0x2e19,
         data: Uint8List.fromList([0x01, 0x02, 0x03]),
-      ),
+      )],
     );
     await peripheralManager.startAdvertising(advertisement);
   }
