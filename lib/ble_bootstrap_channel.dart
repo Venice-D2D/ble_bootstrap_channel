@@ -150,7 +150,7 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
-              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), "", int.parse(words[3].trim()));
+              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), words[3].trim(), int.parse(words[4].trim())); //TODO [0] CONTAINS THE DATACHANNEL TYPE TO PICK THE CORRECT ONE ???
 
               setState(() {
                 compatibles.putIfAbsent(event, () => ConnectionData(
@@ -202,7 +202,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   }
 
   @override
-  Future<void> initSender() async {
+  Future<void> initSender(FileMetadata fileData, ChannelMetadata channelData) async {
     if (isSetUp) {
       return;
     }
@@ -212,30 +212,31 @@ class BleBootstrapChannel extends BootstrapChannel {
     await peripheralManager.removeAllServices(); //clearServices();
 
     // Initialize both values to null values
-    fileValue = fileNullValue;
-    channelValue = channelNullValue;
+    fileValue = Uint8List.fromList(fileData.toString().codeUnits);
+    channelValue = Uint8List.fromList(channelData.toString().codeUnits);
 
     // Initialize service characteristics
-    fileCharacteristic = GATTCharacteristic.mutable(
+    fileCharacteristic = GATTCharacteristic.immutable(
         uuid: veniceFileCharacteristicUuid,
-        properties: [
+        /*properties: [
           GATTCharacteristicProperty.read,
-        ],
+        ],*/
         descriptors: [],
-        permissions: [
+        value: fileValue,
+        /*permissions: [
           GATTCharacteristicPermission.read,
-        ],
+        ],*/
     );
-    channelCharacteristic = GATTCharacteristic.mutable(
+    channelCharacteristic = GATTCharacteristic.immutable(
         uuid: veniceChannelCharacteristicUuid,
-        properties: [
+        /*properties: [
           GATTCharacteristicProperty.read,
-        ],
+        ],*/
         descriptors: [],
-        //value:  Uint8List.fromList([0x01, 0x02]),
-        permissions: [
+        value: channelValue, //Uint8List.fromList([0x01, 0x02]),
+        /*permissions: [
           GATTCharacteristicPermission.read,
-        ],
+        ],*/
     );
 
     final service = GATTService(
