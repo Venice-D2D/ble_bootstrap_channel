@@ -5,7 +5,6 @@ library ble_bootstrap_channel;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 import 'package:flutter/material.dart';
 import 'package:venice_core/channels/abstractions/bootstrap_channel.dart';
@@ -67,55 +66,57 @@ class BleBootstrapChannel extends BootstrapChannel {
     //await centralManager.setUp(); removed in 6.x
 
     while (centralManager.state != BluetoothLowEnergyState.poweredOn) {
-      debugPrint("Waiting for Bluetooth to be ready...");
+      debugPrint("[BleBootstrapChannel::initReceiver] Waiting for Bluetooth to be ready...");
       await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint("[BleBootstrapChannel::initReceiver] Waiting for Bluetooth to be ready 2...");
     }
 
     showDialog(
       context: context,
       builder: (context) {
-        Set<String> seen = {};
+        Set<UUID> seen = {};
         Map<DiscoveredEventArgs, ConnectionData> compatibles = {};
 
         return StatefulBuilder(
           builder: (context, setState) {
             centralManager.discovered.listen((event) async {
-              String? advName = event.advertisement.name;
-              if (seen.contains(advName)) {
+              UUID foundDeviceUuid = event.peripheral.uuid;
+              if (seen.contains(foundDeviceUuid)) {
                 return;
               }
 
               // Do not visit same devices twice
-              if (advName != null) {
-                seen.add(advName);
-              }
+              seen.add(foundDeviceUuid);
 
-              // TODO remove this check maybe?
-              if (advName != "venice") {
+
+              if(!event.advertisement.serviceUUIDs.contains(veniceUuid)){
+                debugPrint("[BleBootstrapChannel::initReceiver] ==> NOT A VENICE DEVICE -- Looking for ${veniceUuid.toString()}");
                 return;
               }
 
-              debugPrint("==> VENICE DEVICE FOUND");
-              await centralManager.stopDiscovery();
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> VENICE DEVICE FOUND");
+
 
               // Connect to distant device
               try {
+                //event.peripheral.addServicesUUID(veniceUuid);
                 await centralManager.connect(event.peripheral);
               } catch(e){
-                debugPrint("Error connecting to device: $e");
+                debugPrint("[BleBootstrapChannel::initReceiver] Error connecting to device: $e");
               }
-              debugPrint("==> CONNECTED TO VENICE DEVICE");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> CONNECTED TO VENICE DEVICE");
 
               // Retrieve venice service
               List<GATTService> services = await centralManager.discoverGATT(event.peripheral);
-              debugPrint("==> Services retrieved !");
-              debugPrint(veniceUuid.toString());
+              debugPrint("[BleBootstrapChannel::initReceiver]==> Services retrieved !");
+              debugPrint("[BleBootstrapChannel::initReceiver] ${veniceUuid.toString()}");
               List<GATTService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
               if (matchingServices.isEmpty) {
-                debugPrint("==> VENICE SERVICE NOT FOUND");
+                debugPrint("[BleBootstrapChannel::initReceiver] ==> VENICE SERVICE NOT FOUND");
                 return;
               }
-              debugPrint("==> FOUND VENICE SERVICE");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> FOUND VENICE SERVICE");
+              await centralManager.stopDiscovery();
 
               // Retrieve file data
               GATTCharacteristic distantFileCharacteristic =
@@ -124,16 +125,16 @@ class BleBootstrapChannel extends BootstrapChannel {
                 orElse: () => throw RangeError("File characteristic not found."));
               Uint8List fValue = fileNullValue;
               while (fValue.toString() == fileNullValue.toString() || fValue.isEmpty) {
-                debugPrint("==> FETCHING FILE VALUE");
+                debugPrint("[BleBootstrapChannel::initReceiver] ==> FETCHING FILE VALUE");
                 fValue = await centralManager.readCharacteristic(event.peripheral, distantFileCharacteristic);
                 await Future.delayed(const Duration(seconds: 1));
               }
-              debugPrint("==> FILE CHARACTERISTIC OK");
-              debugPrint("==> RECEIVED: ${utf8.decode(fValue)}");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> FILE CHARACTERISTIC OK");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> RECEIVED: ${utf8.decode(fValue)}");
               List<String> words = utf8.decode(fValue).split(';');
-              debugPrint("==> RECEIVED size: "+words.length.toString());
-              debugPrint("==> RECEIVED List content: "+words.join(" "));
-              debugPrint("==> RECEIVED List first: "+words[0]);
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> RECEIVED size: ${words.length.toString()}");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> RECEIVED List content: ${words.join(" ")}");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> RECEIVED List first: ${words[0]}");
               FileMetadata fileMetadata = FileMetadata(words[0].trim(), int.parse(words[1].trim()), int.parse(words[2].trim()));
 
               // Retrieve channel data
@@ -143,12 +144,12 @@ class BleBootstrapChannel extends BootstrapChannel {
                     orElse: () => throw RangeError("Channel characteristic not found."));
               Uint8List cValue = channelNullValue;
               do {
-                debugPrint("==> FETCHING CHANNEL VALUE");
+                debugPrint("[BleBootstrapChannel::initReceiver] ==> FETCHING CHANNEL VALUE");
                 cValue = await centralManager.readCharacteristic(event.peripheral, distantChannelCharacteristic);
                 await Future.delayed(const Duration(seconds: 1));
               } while (cValue.toString() == channelNullValue.toString() || cValue.isEmpty);
-              debugPrint("==> CHANNEL CHARACTERISTIC OK");
-              debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> CHANNEL CHARACTERISTIC OK");
+              debugPrint("[BleBootstrapChannel::initReceiver] ==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
               ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), words[3].trim(), int.parse(words[4].trim())); //TODO [0] CONTAINS THE DATACHANNEL TYPE TO PICK THE CORRECT ONE ???
 
@@ -160,7 +161,9 @@ class BleBootstrapChannel extends BootstrapChannel {
             });
 
             // Start devices discovery
-            centralManager.startDiscovery();
+            List<UUID> uuids = [veniceUuid];
+            debugPrint("[BleBootstrapChannel::initReceiver] Starting discovery...");
+            centralManager.startDiscovery(serviceUUIDs: uuids);
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
@@ -193,12 +196,12 @@ class BleBootstrapChannel extends BootstrapChannel {
 
     while (connectionData == null) {
       await Future.delayed(const Duration(seconds: 1));
-      debugPrint("Waiting for device selection...");
+      debugPrint("[BleBootstrapChannel::initReceiver] Waiting for device selection...");
     }
 
     on(BootstrapChannelEvent.fileMetadata, connectionData!.fileData);
     on(BootstrapChannelEvent.channelMetadata, connectionData!.channelData);
-    debugPrint("==> ALL DONE!");
+    debugPrint("[BleBootstrapChannel::initReceiver] ==> ALL DONE!");
   }
 
   @override
@@ -208,35 +211,31 @@ class BleBootstrapChannel extends BootstrapChannel {
     }
     isSetUp = true;
 
-    //await peripheralManager.setUp(); removed in 6.x
-    await peripheralManager.removeAllServices(); //clearServices();
+    while (peripheralManager.state != BluetoothLowEnergyState.poweredOn) {
+      debugPrint("[BleBootstrapChannel::initSender] Waiting for Bluetooth to be ready...");
+      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint("[BleBootstrapChannel::initSender] Waiting for Bluetooth to be ready 2...");
+    }
+    
+    debugPrint("[BleBootstrapChannel::initSender] Bluetooth ready ...");
+    await peripheralManager.removeAllServices(); //clearServices(); TODO not required ?
 
-    // Initialize both values to null values
+    debugPrint("[BleBootstrapChannel::initSender] Services removed ...");
+
+    // Initialize both values
     fileValue = Uint8List.fromList(fileData.toString().codeUnits);
     channelValue = Uint8List.fromList(channelData.toString().codeUnits);
 
     // Initialize service characteristics
     fileCharacteristic = GATTCharacteristic.immutable(
         uuid: veniceFileCharacteristicUuid,
-        /*properties: [
-          GATTCharacteristicProperty.read,
-        ],*/
         descriptors: [],
         value: fileValue,
-        /*permissions: [
-          GATTCharacteristicPermission.read,
-        ],*/
     );
     channelCharacteristic = GATTCharacteristic.immutable(
         uuid: veniceChannelCharacteristicUuid,
-        /*properties: [
-          GATTCharacteristicProperty.read,
-        ],*/
         descriptors: [],
-        value: channelValue, //Uint8List.fromList([0x01, 0x02]),
-        /*permissions: [
-          GATTCharacteristicPermission.read,
-        ],*/
+        value: channelValue,
     );
 
     final service = GATTService(
@@ -246,7 +245,7 @@ class BleBootstrapChannel extends BootstrapChannel {
         fileCharacteristic
       ],
       includedServices: [],
-      isPrimary: true, //To check it is ok
+      isPrimary: true, //TODO To check it is ok
     );
 
     // Setup answer listeners
@@ -263,29 +262,29 @@ class BleBootstrapChannel extends BootstrapChannel {
       Uint8List value;
       if (characteristic.uuid == veniceChannelCharacteristicUuid) {
         value = channelValue;
-        debugPrint("[BleBootstrapChannel] veniceChannelCharacteristicUuid selected !");
+        debugPrint("[BleBootstrapChannel::initSender] veniceChannelCharacteristicUuid selected !");
       } else if (characteristic.uuid == veniceFileCharacteristicUuid) {
-        debugPrint("[BleBootstrapChannel] veniceFileCharacteristicUuid selected !");
+        debugPrint("[BleBootstrapChannel::initSender] veniceFileCharacteristicUuid selected !");
         value = fileValue;
       } else {
         throw UnimplementedError();
       }
 
-      debugPrint("[BleBootstrapChannel] Sending characteristic info");
+      debugPrint("[BleBootstrapChannel::initSender] Sending characteristic info");
       await peripheralManager.respondReadRequestWithValue(request, value: value);
     });
+
+    debugPrint("[BleBootstrapChannel::initSender] Adding service ...");
 
     await peripheralManager.addService(service);
     final advertisement = Advertisement(
       name: 'venice',
       serviceUUIDs: [service.uuid],
-      serviceData: {channelCharacteristic.uuid:channelValue},
-      manufacturerSpecificData: [ManufacturerSpecificData(
-        id: 0x2e19,
-        data: Uint8List.fromList([0x01, 0x02, 0x03]),
-      )],
     );
-    await peripheralManager.startAdvertising(advertisement);
+    debugPrint("[BleBootstrapChannel::initSender] Starting advertisement ...");
+
+    peripheralManager.startAdvertising(advertisement);
+    debugPrint("[BleBootstrapChannel::initSender] Advertisement done...");
   }
 
   @override

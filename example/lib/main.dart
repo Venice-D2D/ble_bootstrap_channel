@@ -37,7 +37,7 @@ class _MyHomePageState extends State<MyHomePage> {
     BleBootstrapChannel channel = BleBootstrapChannel(context);
     FileMetadata data = FileMetadata("testName", 42000, 10);
     ChannelMetadata cData =
-        ChannelMetadata("wifi_channel", "address", "apIdentifier", "password");
+        ChannelMetadata("wifi_channel", "address", "apIdentifier", "password", -1);
 
     channel.on = (BootstrapChannelEvent event, dynamic data) {
       Fluttertoast.showToast(
@@ -57,13 +57,13 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             ElevatedButton(
                 onPressed: () async {
-                  await channel.initSender();
+                  await channel.initSender(data, cData);
                   channel.sendFileMetadata(data);
                 },
                 child: const Text("Send file metadata")),
             ElevatedButton(
                 onPressed: () async {
-                  await channel.initSender();
+                  await channel.initSender(data, cData);
                   channel.sendChannelMetadata(cData);
                 },
                 child: const Text("Send channel metadata")),
