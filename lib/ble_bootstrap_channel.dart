@@ -39,6 +39,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   late Uint8List fileValue;
   late Uint8List channelValue;
   bool isSetUp = false;
+  bool discoveryStarted = false;
   StreamSubscription? characteristicReadSubscription;
 
   // Receiver values
@@ -109,7 +110,7 @@ class BleBootstrapChannel extends BootstrapChannel {
               // Retrieve venice service
               List<GATTService> services = await centralManager.discoverGATT(event.peripheral);
               debugPrint("[BleBootstrapChannel::initReceiver]==> Services retrieved !");
-              debugPrint("[BleBootstrapChannel::initReceiver] ${veniceUuid.toString()}");
+              debugPrint("[BleBootstrapChannel::initReceiver] Looking for venice Service ${veniceUuid.toString()}");
               List<GATTService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
               if (matchingServices.isEmpty) {
                 debugPrint("[BleBootstrapChannel::initReceiver] ==> VENICE SERVICE NOT FOUND");
@@ -161,9 +162,12 @@ class BleBootstrapChannel extends BootstrapChannel {
             });
 
             // Start devices discovery
-            List<UUID> uuids = [veniceUuid];
-            debugPrint("[BleBootstrapChannel::initReceiver] Starting discovery...");
-            centralManager.startDiscovery(serviceUUIDs: uuids);
+            if(!discoveryStarted) {
+              debugPrint(
+                  "[BleBootstrapChannel::initReceiver] Starting discovery...");
+              centralManager.startDiscovery(serviceUUIDs: [veniceUuid]);
+              discoveryStarted = true;
+            }
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
@@ -216,7 +220,7 @@ class BleBootstrapChannel extends BootstrapChannel {
       await Future.delayed(const Duration(milliseconds: 500));
       debugPrint("[BleBootstrapChannel::initSender] Waiting for Bluetooth to be ready 2...");
     }
-    
+
     debugPrint("[BleBootstrapChannel::initSender] Bluetooth ready ...");
     await peripheralManager.removeAllServices(); //clearServices(); TODO not required ?
 
