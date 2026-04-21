@@ -57,13 +57,13 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             ElevatedButton(
                 onPressed: () async {
-                  await channel.initSender();
+                  await channel.initSender(data, cData);
                   channel.sendFileMetadata(data);
                 },
                 child: const Text("Send file metadata")),
             ElevatedButton(
                 onPressed: () async {
-                  await channel.initSender();
+                  await channel.initSender(data, cData);
                   channel.sendChannelMetadata(cData);
                 },
                 child: const Text("Send channel metadata")),

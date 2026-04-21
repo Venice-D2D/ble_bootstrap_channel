@@ -141,7 +141,7 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
-              ChannelMetadata channelMetadata = ChannelMetadata(words[0], words[1], words[2], words[3]);
+              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), "", int.parse(words[3].trim()));
 
               setState(() {
                 compatibles.putIfAbsent(event, () => ConnectionData(
@@ -193,7 +193,7 @@ class BleBootstrapChannel extends BootstrapChannel {
   }
 
   @override
-  Future<void> initSender() async {
+  Future<void> initSender(FileMetadata fileData, ChannelMetadata channelData) async {
     if (isSetUp) {
       return;
     }
