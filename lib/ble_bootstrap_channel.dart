@@ -141,7 +141,7 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
-              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), "", int.parse(words[3].trim()));
+              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), words[3].trim(), int.parse(words[4].trim()));
 
               setState(() {
                 compatibles.putIfAbsent(event, () => ConnectionData(
