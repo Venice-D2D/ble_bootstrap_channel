@@ -1,3 +1,7 @@
+// As we don't want to duplicate the venice_core dependency in the 'example'
+// app subdirectory, we rely on the version imported by the main package.
+// ignore_for_file: depend_on_referenced_packages
+
 import 'package:ble_bootstrap_channel/ble_bootstrap_channel.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:venice_core/metadata/channel_metadata.dart';
@@ -37,7 +41,7 @@ class _MyHomePageState extends State<MyHomePage> {
     BleBootstrapChannel channel = BleBootstrapChannel(context);
     FileMetadata data = FileMetadata("testName", 42000, 10);
     ChannelMetadata cData =
-        ChannelMetadata("wifi_channel", "address", "apIdentifier", "password");
+        ChannelMetadata("wifi_channel", "address", "apIdentifier", "password", 4242);
 
     channel.on = (BootstrapChannelEvent event, dynamic data) {
       Fluttertoast.showToast(
