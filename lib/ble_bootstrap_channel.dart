@@ -21,9 +21,9 @@ class ConnectionData {
 
 class BleBootstrapChannel extends BootstrapChannel {
   final BuildContext context;
-  final UUID veniceUuid = UUID.short(100);
-  final UUID veniceFileCharacteristicUuid = UUID.short(200);
-  final UUID veniceChannelCharacteristicUuid = UUID.short(201);
+  final UUID veniceUuid = UUID.short(6157);
+  final UUID veniceFileCharacteristicUuid = UUID.short(10793);
+  final UUID veniceChannelCharacteristicUuid = UUID.short(10896);
   CentralManager get centralManager => CentralManager();
   PeripheralManager get peripheralManager => PeripheralManager();
   BleBootstrapChannel(this.context);
