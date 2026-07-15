@@ -4,6 +4,7 @@ library ble_bootstrap_channel;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
@@ -34,7 +35,12 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   // Reference values
   final Uint8List fileNullValue = Uint8List.fromList([0x09, 0x08, 0x07, 0x06]);
-  final Uint8List channelNullValue = Uint8List.fromList([0x00, 0x01, 0x02, 0x03]);
+  final Uint8List channelNullValue = Uint8List.fromList([
+    0x00,
+    0x01,
+    0x02,
+    0x03,
+  ]);
 
   // Sender values
   late Uint8List fileValue;
@@ -44,7 +50,6 @@ class BleBootstrapChannel extends BootstrapChannel {
 
   // Receiver values
   Peripheral? distantDevice;
-
 
   @override
   Future<void> close() async {
@@ -101,8 +106,12 @@ class BleBootstrapChannel extends BootstrapChannel {
               debugPrint("==> CONNECTED TO VENICE DEVICE");
 
               // Retrieve venice service
-              List<GATTService> services = await centralManager.discoverGATT(event.peripheral);
-              List<GATTService> matchingServices = services.where((element) => element.uuid == veniceUuid).toList();
+              List<GATTService> services = await centralManager.discoverGATT(
+                event.peripheral,
+              );
+              List<GATTService> matchingServices = services
+                  .where((element) => element.uuid == veniceUuid)
+                  .toList();
               if (matchingServices.isEmpty) {
                 debugPrint("==> VENICE SERVICE NOT FOUND");
                 return;
@@ -111,41 +120,72 @@ class BleBootstrapChannel extends BootstrapChannel {
               await centralManager.stopDiscovery();
 
               // Retrieve file data
-              GATTCharacteristic distantFileCharacteristic =
-                matchingServices.first.characteristics
-                    .firstWhere((element) => element.uuid == veniceFileCharacteristicUuid,
-                orElse: () => throw RangeError("File characteristic not found."));
+              GATTCharacteristic distantFileCharacteristic = matchingServices
+                  .first
+                  .characteristics
+                  .firstWhere(
+                    (element) => element.uuid == veniceFileCharacteristicUuid,
+                    orElse: () =>
+                        throw RangeError("File characteristic not found."),
+                  );
               Uint8List fValue = fileNullValue;
-              while (fValue.toString() == fileNullValue.toString() || fValue.isEmpty) {
+              while (fValue.toString() == fileNullValue.toString() ||
+                  fValue.isEmpty) {
                 debugPrint("==> FETCHING FILE VALUE");
-                fValue = await centralManager.readCharacteristic(event.peripheral, distantFileCharacteristic);
+                fValue = await centralManager.readCharacteristic(
+                  event.peripheral,
+                  distantFileCharacteristic,
+                );
                 await Future.delayed(const Duration(seconds: 1));
               }
               debugPrint("==> FILE CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(fValue)}");
               List<String> words = utf8.decode(fValue).split(';');
-              FileMetadata fileMetadata = FileMetadata(words[0], int.parse(words[1]), int.parse(words[2]));
+              FileMetadata fileMetadata = FileMetadata(
+                words[0],
+                int.parse(words[1]),
+                int.parse(words[2]),
+              );
 
               // Retrieve channel data
-              GATTCharacteristic distantChannelCharacteristic =
-                matchingServices.first.characteristics
-                    .firstWhere((element) => element.uuid == veniceChannelCharacteristicUuid,
-                    orElse: () => throw RangeError("Channel characteristic not found."));
+              GATTCharacteristic distantChannelCharacteristic = matchingServices
+                  .first
+                  .characteristics
+                  .firstWhere(
+                    (element) =>
+                        element.uuid == veniceChannelCharacteristicUuid,
+                    orElse: () =>
+                        throw RangeError("Channel characteristic not found."),
+                  );
               Uint8List cValue = channelNullValue;
               do {
                 debugPrint("==> FETCHING CHANNEL VALUE");
-                cValue = await centralManager.readCharacteristic(event.peripheral, distantChannelCharacteristic);
+                cValue = await centralManager.readCharacteristic(
+                  event.peripheral,
+                  distantChannelCharacteristic,
+                );
                 await Future.delayed(const Duration(seconds: 1));
-              } while (cValue.toString() == channelNullValue.toString() || cValue.isEmpty);
+              } while (cValue.toString() == channelNullValue.toString() ||
+                  cValue.isEmpty);
               debugPrint("==> CHANNEL CHARACTERISTIC OK");
               debugPrint("==> RECEIVED: ${utf8.decode(cValue)}");
               words = utf8.decode(cValue).split(";");
-              ChannelMetadata channelMetadata = ChannelMetadata(words[0].trim(), words[1].trim(), words[2].trim(), words[3].trim(), int.parse(words[4].trim()));
+              ChannelMetadata channelMetadata = ChannelMetadata(
+                words[0].trim(),
+                words[1].trim(),
+                words[2].trim(),
+                words[3].trim(),
+                int.parse(words[4].trim()),
+              );
 
               setState(() {
-                compatibles.putIfAbsent(event, () => ConnectionData(
+                compatibles.putIfAbsent(
+                  event,
+                  () => ConnectionData(
                     fileData: fileMetadata,
-                    channelData: channelMetadata));
+                    channelData: channelMetadata,
+                  ),
+                );
               });
             });
 
@@ -154,19 +194,25 @@ class BleBootstrapChannel extends BootstrapChannel {
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
-              content: compatibles.isEmpty ? const Text("Searching...") : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: compatibles.entries.map((e) => ListTile(
-                  leading: const Icon(Icons.bluetooth),
-                  title: Text(e.key.advertisement.name!),
-                  subtitle: Text(e.key.peripheral.uuid.toString()),
-                  onTap: () {
-                    connectionData = e.value;
-                    distantDevice = e.key.peripheral;
-                    Navigator.pop(context);
-                  },
-                )).toList(),
-              ),
+              content: compatibles.isEmpty
+                  ? const Text("Searching...")
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: compatibles.entries
+                          .map(
+                            (e) => ListTile(
+                              leading: const Icon(Icons.bluetooth),
+                              title: Text(e.key.advertisement.name!),
+                              subtitle: Text(e.key.peripheral.uuid.toString()),
+                              onTap: () {
+                                connectionData = e.value;
+                                distantDevice = e.key.peripheral;
+                                Navigator.pop(context);
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
@@ -192,11 +238,20 @@ class BleBootstrapChannel extends BootstrapChannel {
   }
 
   @override
-  Future<void> initSender(FileMetadata fileData, ChannelMetadata channelData) async {
+  Future<void> initSender(
+    FileMetadata fileData,
+    ChannelMetadata channelData,
+  ) async {
     if (isSetUp) {
       return;
     }
     isSetUp = true;
+
+    if (Platform.isAndroid &&
+        peripheralManager.state != BluetoothLowEnergyState.poweredOn) {
+      await peripheralManager.authorize();
+    }
+    debugPrint(peripheralManager.state.toString());
 
     // Initialize both values to null values
     fileValue = fileNullValue;
@@ -204,47 +259,52 @@ class BleBootstrapChannel extends BootstrapChannel {
 
     // Initialize service characteristics
     fileCharacteristic = GATTCharacteristic.immutable(
-        uuid: veniceFileCharacteristicUuid,
-        descriptors: [],
-        value: fileValue,
+      uuid: veniceFileCharacteristicUuid,
+      descriptors: [],
+      value: fileValue,
     );
     channelCharacteristic = GATTCharacteristic.immutable(
-        uuid: veniceChannelCharacteristicUuid,
-        descriptors: [],
-        value: channelValue,
+      uuid: veniceChannelCharacteristicUuid,
+      descriptors: [],
+      value: channelValue,
     );
 
     final service = GATTService(
       uuid: veniceUuid,
-      characteristics: [
-        channelCharacteristic,
-        fileCharacteristic
-      ],
+      characteristics: [channelCharacteristic, fileCharacteristic],
       includedServices: [],
       isPrimary: true,
     );
 
     // Setup answer listeners
-    characteristicReadSubscription = peripheralManager.characteristicReadRequested.listen((eventArgs) async {
-      final request = eventArgs.request;
-      final characteristic = eventArgs.characteristic;
+    characteristicReadSubscription = peripheralManager
+        .characteristicReadRequested
+        .listen((eventArgs) async {
+          final request = eventArgs.request;
+          final characteristic = eventArgs.characteristic;
 
-      // Throw if requested characteristic is not a Venice one
-      if (![veniceChannelCharacteristicUuid, veniceFileCharacteristicUuid].contains(characteristic.uuid)) {
-        throw ArgumentError("Tried to read a non-Venice characteristic.");
-      }
+          // Throw if requested characteristic is not a Venice one
+          if (![
+            veniceChannelCharacteristicUuid,
+            veniceFileCharacteristicUuid,
+          ].contains(characteristic.uuid)) {
+            throw ArgumentError("Tried to read a non-Venice characteristic.");
+          }
 
-      Uint8List value;
-      if (characteristic.uuid == veniceChannelCharacteristicUuid) {
-        value = channelValue;
-      } else if (characteristic.uuid == veniceFileCharacteristicUuid) {
-        value = fileValue;
-      } else {
-        throw UnimplementedError();
-      }
+          Uint8List value;
+          if (characteristic.uuid == veniceChannelCharacteristicUuid) {
+            value = channelValue;
+          } else if (characteristic.uuid == veniceFileCharacteristicUuid) {
+            value = fileValue;
+          } else {
+            throw UnimplementedError();
+          }
 
-      await peripheralManager.respondReadRequestWithValue(request, value: value);
-    });
+          await peripheralManager.respondReadRequestWithValue(
+            request,
+            value: value,
+          );
+        });
 
     await peripheralManager.addService(service);
     final advertisement = Advertisement(
