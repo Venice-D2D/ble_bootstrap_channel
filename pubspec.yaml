@@ -1,6 +1,6 @@
 name: ble_bootstrap_channel
 description: Transmit metadata between devices through Bluetooth Low Energy.
-version: 0.0.1
+version: 0.0.2
 homepage: https://github.com/Venice-D2D/ble_bootstrap_channel
 publish_to: none
 
@@ -9,7 +9,7 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
-  bluetooth_low_energy: ^5.0.6
+  bluetooth_low_energy: ^6.2.1
   flutter:
     sdk: flutter
   venice_core:
