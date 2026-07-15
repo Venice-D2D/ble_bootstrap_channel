@@ -95,7 +95,6 @@ class BleBootstrapChannel extends BootstrapChannel {
               }
 
               debugPrint("==> VENICE DEVICE FOUND");
-              await centralManager.stopDiscovery();
 
               // Connect to distant device
               await centralManager.connect(event.peripheral);
@@ -109,6 +108,7 @@ class BleBootstrapChannel extends BootstrapChannel {
                 return;
               }
               debugPrint("==> FOUND VENICE SERVICE");
+              await centralManager.stopDiscovery();
 
               // Retrieve file data
               GATTCharacteristic distantFileCharacteristic =
