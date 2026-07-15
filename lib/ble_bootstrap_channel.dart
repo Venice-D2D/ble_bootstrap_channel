@@ -150,7 +150,7 @@ class BleBootstrapChannel extends BootstrapChannel {
             });
 
             // Start devices discovery
-            centralManager.startDiscovery();
+            centralManager.startDiscovery(serviceUUIDs: [veniceUuid]);
 
             return AlertDialog(
               title: const Text("Looking for devices..."),
